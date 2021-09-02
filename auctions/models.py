@@ -17,8 +17,10 @@ class active_list(models.Model):
     status=models.BooleanField(default=True)
     won_by=models.ForeignKey("bids",on_delete=models.DO_NOTHING,related_name="won",blank=True,null=True)
     def __str__(self):
-        return f"{self.owner}:{self.title} belong to {self.belongs_to}"
-
+        return f"title:{self.title}"
+    def serialize(self):
+        return {'title':self.title}
+    
 class bids(models.Model):
     placed_on=models.ForeignKey(active_list,on_delete=models.CASCADE,related_name="bids")
     bid=models.IntegerField()
