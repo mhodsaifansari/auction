@@ -136,12 +136,11 @@ class CreateListingView(APIView):
     permission_classes=(IsAuthenticated,)
    
     def post(self,request,*args,**kwargs):
-
         
         try:
             image="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png"
-            if request.data["image"] != '':
-                image = request.data["image"]
+            if request.data["image"] != "":
+                    image = request.data["image"]
             
             if request.data["group"] == "None":
                 listing = active_list(title=request.data["title"],description=request.data["description"],owner=request.user,primary_bid=request.data["bid"],image=image)
