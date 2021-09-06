@@ -8,13 +8,24 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 class User_serializer(serializers.ModelSerializer):
     class Meta:
         model=User
-        fields=['username']
+        fields=['id','username']
 class ActiveLisiting(serializers.ModelSerializer):
     class Meta:
         model=active_list
         fields=['id','title','description','primary_bid','image']
+class group_serializer(serializers.ModelSerializer):
+    class Meta:
+        model=groups
+        fields=['id','text']
+class BidSerializer(serializers.ModelSerializer):
+    bidded_by=User_serializer(read_only=True)
+    class Meta:
+        model=bids
+        fields=['bidded_by']
 class ViewList(serializers.ModelSerializer):
     owner=User_serializer(read_only=True)
+    belongs_to=group_serializer(read_only=True)
+    won_by=BidSerializer(read_only=True)
     class Meta:
         model=active_list
         fields=['id','title','description','owner','image','belongs_to','won_by','status']
@@ -23,13 +34,11 @@ class BidData(serializers.ModelSerializer):
         model=bids
         fields=['id','bid']
 class comment_serializer(serializers.ModelSerializer):
+    comment_by=User_serializer(read_only=True)
     class Meta:
         model=comments
         fields=['text','comment_by']
-class group_serializer(serializers.ModelSerializer):
-    class Meta:
-        model=groups
-        fields=['id','text']
+
 class UserTokenObtain(TokenObtainPairSerializer):
     def validate(self, attrs):
         data=super().validate(attrs)

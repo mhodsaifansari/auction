@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/close/<int:id>",closeView.as_view()),
     path("api/mylist",MylistView.as_view()),
     path("api/wonlist",WonView.as_view())   ,
-    path("api/bid/<int:id>",BidView.as_view()) 
+    path("api/bid/<int:id>",BidView.as_view()),
+    path("api/user/<int:id>",ProfileView.as_view()) 
 
 ]

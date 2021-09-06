@@ -1,6 +1,3 @@
-
-
-import re
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from rest_framework import permissions
@@ -34,23 +31,24 @@ class Register(APIView):
         password = request.data["password"]
         confirmation = request.data["confirmation"]
         if password != confirmation:
-            return render( {
+            return Response( {
                 "message": "Passwords must match."
-            })
+            },status=400)
 
         # Attempt to create new user
         try:
             user = User.objects.create_user(username, email, password)
             user.save()
         except IntegrityError:
-            return render( {
+            return Response( {
                 "message": "Username already taken."
-            })
+            },status=401)
         
         return Response("User successfully created")
 
 class Login(TokenObtainPairView):
     serializer_class=UserTokenObtain
+    
 
 class Logout(APIView):
     permission_classes=(IsAuthenticated,)
@@ -59,10 +57,10 @@ class Logout(APIView):
         return Response("Logout successful")
 class IndexView(APIView):
     def get(self,request,*args,**kwargs):
-        bids_data=active_list.objects.filter(status=True)
-        bids_list=get_bid_data(bids_data)      
-        bids_data=ActiveLisiting(bids_data,many=True)
+        bids_data=active_list.objects.filter(status=True).order_by('-id')
         
+        bids_list=get_bid_data(bids_data)    
+        bids_data=ActiveLisiting(bids_data,many=True)
         return Response({'listing':bids_data.data,'bid_list':bids_list})
 class ViewListing(APIView):
     permissions_classes=[IsAuthenticated|AllowAny]
@@ -255,7 +253,13 @@ class BidView(APIView):
                 return Response("Bid need to be greater then intial bid")
         else:
             return Response("Bid is closed",status=403)
+class ProfileView(APIView):
+    permission_classes=(IsAuthenticated,)
+    def get(self,request,*args,**kwargs):
+        user_data=User.objects.get(id=kwargs.get('id'))
+        watchlist_list=ViewList(user_data.watchlists,many=True)
 
+        return Response({'username':user_data.username,'watchlist':watchlist_list.data})
 def get_bid_data(objects_list):
     bid_data=[]
     for objects in objects_list:
