@@ -255,7 +255,7 @@ class BidView(APIView):
 class ProfileView(APIView):
     permission_classes=(IsAuthenticated,)
     def get(self,request,*args,**kwargs):
-        user_data=User.objects.get(id=kwargs.get('id'))
+        user_data=User.objects.get(username=kwargs.get('username'))
         owned_list=active_list.objects.filter(owner=user_data)
         print(owned_list)
         bid_list=get_bid_data(owned_list)
