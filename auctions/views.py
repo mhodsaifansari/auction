@@ -256,9 +256,12 @@ class ProfileView(APIView):
     permission_classes=(IsAuthenticated,)
     def get(self,request,*args,**kwargs):
         user_data=User.objects.get(id=kwargs.get('id'))
-        watchlist_list=ViewList(user_data.watchlists,many=True)
-
-        return Response({'username':user_data.username,'watchlist':watchlist_list.data})
+        owned_list=active_list.objects.filter(owner=user_data)
+        print(owned_list)
+        bid_list=get_bid_data(owned_list)
+        watchlist_list=ViewList(owned_list,many=True)
+        
+        return Response({'username':user_data.username,'watchlist':watchlist_list.data,'bid_list':bid_list})
 def get_bid_data(objects_list):
     bid_data=[]
     for objects in objects_list:
