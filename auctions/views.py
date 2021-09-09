@@ -14,12 +14,12 @@ from django.db.models import Max, expressions
 from .models import *
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
-
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
+from django.core.paginator import Paginator
 def csrf(request):
     return JsonResponse({'csrfToken':get_token(request)})
 class Register(APIView):
@@ -58,10 +58,20 @@ class Logout(APIView):
 class IndexView(APIView):
     def get(self,request,*args,**kwargs):
         bids_data=active_list.objects.filter(status=True).order_by('-id')
+        page=1
+        paginator=Paginator(bids_data,3)
+        try:
+            page=request.GET["page"]
+            
+        except:
+            print("page is not there")
         
+        print(page)
+        
+        bids_data=paginator.page(page)
         bids_list=get_bid_data(bids_data)    
         bids_data=ActiveLisiting(bids_data,many=True)
-        return Response({'listing':bids_data.data,'bid_list':bids_list})
+        return Response({'listing':bids_data.data,'bid_list':bids_list,'max_page':paginator.num_pages})
 class ViewListing(APIView):
     permissions_classes=[IsAuthenticated|AllowAny]
     def get(self,request,*args,**kwargs):
@@ -154,12 +164,19 @@ class CreateListingView(APIView):
 class WatchlistView(APIView):
     permission_classes=(IsAuthenticated,)
     def get(self,request,*args,**kwargs):
-        watchlist_list=request.user.watchlists.all()
-        print(watchlist_list)
+        watchlist_list=request.user.watchlists.all().order_by('-id')
+        page=1
+        paginator=Paginator(watchlist_list,3)
+        try:
+            page=request.GET["page"]
+            
+        except:
+            print("page is not there")
+        watchlist_list=paginator.page(page)
         bid_data=get_bid_data(watchlist_list)
         watchlist_list=ActiveLisiting(watchlist_list,many=True)
        
-        return Response({'listing':watchlist_list.data,'bid_list':bid_data})
+        return Response({'listing':watchlist_list.data,'bid_list':bid_data,'max_page':paginator.num_pages})
 class SetWatchlist(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
@@ -194,10 +211,18 @@ class GroupView(APIView):
             return Response(groups_list.data)
         else:
             listing_in_group=active_list.objects.filter(status=True,belongs_to=groups.objects.get(text=kwargs.get("name")))
+            page=1
+            paginator=Paginator(listing_in_group,3)
+            try:
+                page=request.GET["page"]
+        
+            except:
+                print("page is not there")
+            listing_in_group=paginator.page(page)
             bid_data=get_bid_data(listing_in_group)
             listing_in_group=ActiveLisiting(listing_in_group,many=True)
             
-            return Response({'listing':listing_in_group.data,'bid_list':bid_data})
+            return Response({'listing':listing_in_group.data,'bid_list':bid_data,'max_page':paginator.num_pages})
 class closeView(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
@@ -220,21 +245,37 @@ class closeView(APIView):
 class MylistView(APIView):
     permission_classes=(IsAuthenticated,)
     def get(self,request,*args,**kwargs):
-        watchlist_list=active_list.objects.filter(owner=request.user)
+        watchlist_list=active_list.objects.filter(owner=request.user).order_by('-id')
+        page=1
+        paginator=Paginator(watchlist_list,3)
+        try:
+            page=request.GET["page"]
+            
+        except:
+            print("page is not there")
+        watchlist_list=paginator.page(page)
         bid_data=get_bid_data(watchlist_list)
         watchlist_list=ActiveLisiting(watchlist_list,many=True)
         print(watchlist_list.data)
-        return Response({'listing':watchlist_list.data,'bid_list':bid_data})
+        return Response({'listing':watchlist_list.data,'bid_list':bid_data,'max_page':paginator.num_pages})
 class WonView(APIView):
     permission_classes=(IsAuthenticated,)
     def get(self,request,*args,**kwargs):
         won_list=[]
         for bid_list in bids.objects.filter(bidded_by=request.user):
             won_list+=active_list.objects.filter(won_by=bid_list)
+        page=1
+        paginator=Paginator(won_list,3)
+        try:
+            page=request.GET["page"]
+            
+        except:
+            print("page is not there")
+        won_list=paginator.page(page)
         bid_list=get_bid_data(won_list)
         won_list=ActiveLisiting(won_list,many=True)
         
-        return Response({'listing':won_list.data,'bid_list':bid_list})
+        return Response({'listing':won_list.data,'bid_list':bid_list,'max_page':paginator.num_pages})
 
 class BidView(APIView):
     permission_classes=(IsAuthenticated,)
@@ -257,11 +298,19 @@ class ProfileView(APIView):
     def get(self,request,*args,**kwargs):
         user_data=User.objects.get(username=kwargs.get('username'))
         owned_list=active_list.objects.filter(owner=user_data)
-        print(owned_list)
+        page=1
+        paginator=Paginator(owned_list,3)
+        try:
+            page=request.GET["page"]
+            
+        except:
+            print("page is not there")
+         
+        owned_list=paginator.page(page)
         bid_list=get_bid_data(owned_list)
         watchlist_list=ViewList(owned_list,many=True)
         
-        return Response({'username':user_data.username,'watchlist':watchlist_list.data,'bid_list':bid_list})
+        return Response({'username':user_data.username,'watchlist':watchlist_list.data,'bid_list':bid_list,'max_page':paginator.num_pages})
 def get_bid_data(objects_list):
     bid_data=[]
     for objects in objects_list:
