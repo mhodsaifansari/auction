@@ -112,7 +112,9 @@ REST_FRAMEWORK={
         'rest_framework_simplejwt.authentication.JWTAuthentication'
     ]
 }
-
+SIMPLE_JWT={
+    'BLACKLIST_AFTER_ROTATION': False
+    }
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
 
