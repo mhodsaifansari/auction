@@ -20,6 +20,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.core.paginator import Paginator
+
+
 def csrf(request):
     return JsonResponse({'csrfToken':get_token(request)})
 class Register(APIView):
@@ -59,7 +61,7 @@ class IndexView(APIView):
     def get(self,request,*args,**kwargs):
         bids_data=active_list.objects.filter(status=True).order_by('-id')
         page=1
-        paginator=Paginator(bids_data,3)
+        paginator=Paginator(bids_data,10)
         try:
             page=request.GET["page"]
             
@@ -166,7 +168,7 @@ class WatchlistView(APIView):
     def get(self,request,*args,**kwargs):
         watchlist_list=request.user.watchlists.all().order_by('-id')
         page=1
-        paginator=Paginator(watchlist_list,3)
+        paginator=Paginator(watchlist_list,10)
         try:
             page=request.GET["page"]
             
@@ -247,7 +249,7 @@ class MylistView(APIView):
     def get(self,request,*args,**kwargs):
         watchlist_list=active_list.objects.filter(owner=request.user).order_by('-id')
         page=1
-        paginator=Paginator(watchlist_list,3)
+        paginator=Paginator(watchlist_list,10)
         try:
             page=request.GET["page"]
             
@@ -299,7 +301,7 @@ class ProfileView(APIView):
         user_data=User.objects.get(username=kwargs.get('username'))
         owned_list=active_list.objects.filter(owner=user_data)
         page=1
-        paginator=Paginator(owned_list,3)
+        paginator=Paginator(owned_list,10)
         try:
             page=request.GET["page"]
             
