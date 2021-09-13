@@ -16,9 +16,9 @@ class active_list(models.Model):
     belongs_to=models.ForeignKey("groups",on_delete=models.DO_NOTHING,related_name="items",blank=True,null=True)
     status=models.BooleanField(default=True)
     won_by=models.ForeignKey("bids",on_delete=models.DO_NOTHING,related_name="won",blank=True,null=True)
-    
+    created_on=models.DateTimeField(auto_now_add=True)
     def __str__(self):
-        return f"title:{self.title}"
+        return f"title:{self.title} created_on:{self.created_on}"
     def serialize(self):
         return {'title':self.title}
     

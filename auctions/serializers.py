@@ -12,7 +12,7 @@ class User_serializer(serializers.ModelSerializer):
 class ActiveLisiting(serializers.ModelSerializer):
     class Meta:
         model=active_list
-        fields=['id','title','description','primary_bid','image']
+        fields=['id','title','description','primary_bid','image','created_on']
 class group_serializer(serializers.ModelSerializer):
     class Meta:
         model=groups
@@ -28,7 +28,7 @@ class ViewList(serializers.ModelSerializer):
     won_by=BidSerializer(read_only=True)
     class Meta:
         model=active_list
-        fields=['id','title','description','owner','image','belongs_to','won_by','status']
+        fields=['id','title','description','owner','image','belongs_to','won_by','status','created_on']
 class BidData(serializers.ModelSerializer):
     class Meta:
         model=bids
