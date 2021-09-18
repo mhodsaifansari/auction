@@ -4,6 +4,8 @@ from django.db import models
 
 class User(AbstractUser):
     watchlists=models.ManyToManyField("active_list",blank=True,related_name="watched_by")
+    balance=models.IntegerField(default=100)
+    total_bid=models.IntegerField(default=0)
     def __str__(self):
         return f"{self.username}"
         

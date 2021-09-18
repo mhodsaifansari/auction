@@ -1,3 +1,4 @@
+from rest_framework import response
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from auctions.serializers import *
@@ -36,6 +37,7 @@ class Register(APIView):
         return Response("User successfully created")
 
 class Login(TokenObtainPairView):
+    
     serializer_class=UserTokenObtain
     
 
@@ -45,6 +47,7 @@ class Logout(APIView):
         refresh=RefreshToken.for_user(request.user)
         return Response("Logout successful")
 class IndexView(APIView):
+    permissions_classes=[IsAuthenticated|AllowAny]
     def get(self,request,*args,**kwargs):
         bids_data=active_list.objects.filter(status=True).order_by('-id')
         page=1
@@ -57,29 +60,38 @@ class IndexView(APIView):
         bids_data=paginator.page(page)
         bids_list=get_bid_data(bids_data)    
         bids_data=ActiveLisiting(bids_data,many=True)
-        return Response({'listing':bids_data.data,'bid_list':bids_list,'max_page':paginator.num_pages})
+        response_data={'listing':bids_data.data,'bid_list':bids_list,'max_page':paginator.num_pages}
+        print(request.user.id)
+        if (request.user.id!=None):
+            response_data.update({'balance':request.user.balance,'effective_balance':request.user.balance-request.user.total_bid})
+
+        return Response(response_data)
 class ViewListing(APIView):
     permissions_classes=[IsAuthenticated|AllowAny]
     def get(self,request,*args,**kwargs):
-        try:
-            id=kwargs.get('id')
-            listing_data=active_list.objects.get(pk=id)
-            watchlist=False
-            close_permit=False
-            if(request.user.id!=None):
-                
-                if(request.user.watchlists.filter(id=listing_data.id).exists()):
-                    watchlist=True
-                if(request.user==listing_data.owner):
-                    close_permit=True
-            comments=listing_data.comment_by_users.all()
-            comments=comment_serializer(comments,many=True)
-            bid_data=get_bid_data([listing_data])
-            listing_data=ViewList(listing_data)
+        # try:
+        id=kwargs.get('id')
+        listing_data=active_list.objects.get(pk=id)
+     
+        watchlist=False
+        close_permit=False
+        response_data={}
+        if(request.user.id!=None):
+            response_data.update({'balance':request.user.balance,'effective_balance':request.user.balance-request.user.total_bid})
+            if(request.user.watchlists.filter(id=listing_data.id).exists()):
+                watchlist=True
+        if(request.user==listing_data.owner):
+            close_permit=True
             
-            return Response({'listing':listing_data.data,'bid_data':bid_data[0],'comments':comments.data,'is_in_watchlist':watchlist,'close_permit':close_permit})
-        except:
-            return Response({"message":"Bad value for this endpoint"},status=404)
+        comments=listing_data.comment_by_users.all()
+        comments=comment_serializer(comments,many=True)
+            
+        bid_data=get_bid_data([listing_data])
+        listing_data=ViewList(listing_data)
+        response_data.update({'listing':listing_data.data,'bid_data':bid_data[0],'comments':comments.data,'is_in_watchlist':watchlist,'close_permit':close_permit})
+        return Response(response_data)
+        # except:
+        #     return Response({"message":"Bad value for this endpoint"},status=404)
 class CommentView(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
@@ -166,9 +178,22 @@ class closeView(APIView):
             if bid_data is None:
                 bid_data=bids(placed_on=listing,bid=listing.primary_bid,bidded_by=listing.owner)
                 bid_data.save()
+                listing.won_by=bid_data
+                listing.owner.total_bid-=bid_data.bid
+                
+                listing.save()
+                
+                return Response("saved")
             
             listing.won_by=bid_data
+            user=User.objects.get(id=bid_data.bidded_by.pk)
+            if(user!=listing.owner):
+                user.balance-=bid_data.bid
+                listing.owner.balance+=bid_data.bid
+            user.save()
+            listing.owner.save()
             listing.save()
+            closing_bid(listing)
             return Response("saved")
 class MylistView(APIView):
     permission_classes=(IsAuthenticated,)
@@ -213,11 +238,19 @@ class BidView(APIView):
         if listing_data.status==True:
             bid_data=listing_data.primary_bid
             if int(request.data["bid"])>bid_data:
-                bid=bids(placed_on=listing_data,bid=int(request.data["bid"]),bidded_by=request.user)    
-                bid.save()
-                return Response("Successfully placed")
+                prev_bid=get_prev_bid(listing_data,request.user)
+                if request.user.balance-request.user.total_bid+prev_bid>=int(request.data['bid']):
+                    print(get_prev_bid(listing_data,request.user))
+                    bid=bids(placed_on=listing_data,bid=int(request.data["bid"]),bidded_by=request.user) 
+                    request.user.total_bid-=get_prev_bid(listing_data,request.user)
+                    request.user.total_bid+=int(request.data['bid'])  
+                    request.user.save()
+                    bid.save()
+                    return Response("Successfully placed")
+                else:
+                    return Response("No Balance to place bid",status=406)
             else:
-                return Response("Bid need to be greater then intial bid")
+                return Response("Bid need to be greater then intial bid",status=406)
         else:
             return Response("Bid is closed",status=403)
 class ProfileView(APIView):
@@ -232,12 +265,16 @@ class ProfileView(APIView):
             
         except:
             print("page is not there")
-         
         owned_list=paginator.page(page)
         bid_list=get_bid_data(owned_list)
         watchlist_list=ViewList(owned_list,many=True)
-        
-        return Response({'username':user_data.username,'watchlist':watchlist_list.data,'bid_list':bid_list,'max_page':paginator.num_pages})
+       
+        user_details={'Total_listing':user_data.active_list.all().count(),
+                        'active_listing':int(user_data.active_list.filter(status=True).count()),
+                        'won':active_list.objects.filter(status=False,won_by__in=bids.objects.filter(bidded_by=user_data)).count(),
+                        'bidded':bids.objects.filter(bidded_by=user_data,placed_on__in=active_list.objects.filter(status=True)).values_list("placed_on",flat=True).distinct().count()
+                     }
+        return Response({'username':user_data.username,'balance':user_data.balance,'effective_balance':user_data.balance-user_data.total_bid,'watchlist':watchlist_list.data,'bid_list':bid_list,'max_page':paginator.num_pages,'user_details':user_details})
 def get_bid_data(objects_list):
     bid_data=[]
     for objects in objects_list:
@@ -250,3 +287,25 @@ def get_bid_data(objects_list):
         bid_data+=[bid_data_temp]
     return bid_data
 
+def closing_bid(listing):
+    user_list=bids.objects.filter(placed_on=listing).values_list('bidded_by',flat=True).distinct()
+    print(user_list)
+    for user in user_list:
+        try:
+            user_inst=User.objects.get(pk=user)
+            highest_bid=get_prev_bid(listing,user_inst)
+            user_inst.total_bid-=highest_bid
+            user_inst.save()
+        except:
+            print("error")
+    
+    print("Success")
+
+
+def get_prev_bid(listing,user):
+    bid_list=bids.objects.filter(placed_on=listing,bidded_by=user).aggregate(Max('bid'))["bid__max"]
+    print(bid_list)
+    if bid_list==None:
+        return 0
+    return bid_list
+    
