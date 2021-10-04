@@ -1,3 +1,4 @@
+import channels
 from rest_framework import response
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -11,7 +12,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from django.middleware.csrf import get_token
 from django.core.paginator import Paginator
-
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 class Register(APIView):
     def post(self,request,*args,**kwargs):
         username = request.data["username"]
@@ -83,11 +85,17 @@ class ViewListing(APIView):
         if(request.user==listing_data.owner):
             close_permit=True
             
-        comments=listing_data.comment_by_users.all()
+        comments=listing_data.comment_by_users.all().order_by('-id')
         comments=comment_serializer(comments,many=True)
             
         bid_data=get_bid_data([listing_data])
         listing_data=ViewList(listing_data)
+        channel_layer=get_channel_layer()
+        if channel_layer!=None:
+            async_to_sync(channel_layer.group_send)("listing-"+str(id),{
+                'type':'chat_message',
+                'bid':bid_data[0]
+            })
         response_data.update({'listing':listing_data.data,'bid_data':bid_data[0],'comments':comments.data,'is_in_watchlist':watchlist,'close_permit':close_permit})
         return Response(response_data)
         # except:
@@ -95,13 +103,24 @@ class ViewListing(APIView):
 class CommentView(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
-        try:
-            current_list=active_list.objects.get(pk=kwargs.get('id'))
-            comment_data=comments(text=request.data["comment_text"],comment_by=request.user,comment_on=current_list)     
-            comment_data.save()
-            return Response("Saved Success")
-        except:
-            return Response({"message":"Bad value for this endpoint"},status=404)
+        id=kwargs.get('id')
+        current_list=active_list.objects.get(pk=id)
+        comment_data=comments(text=request.data["comment_text"],comment_by=request.user,comment_on=current_list)     
+        comment_data.save()
+        channel_layer=get_channel_layer()
+        if channel_layer!=None:
+            async_to_sync(channel_layer.group_send)("listing-"+str(id),{
+                   'type':'comment_message',
+                    'comment':{'text':comment_data.text,
+                                'comment_by':{
+                                    'id':comment_data.comment_by.pk,
+                                    'username':comment_data.comment_by.username}
+                                }
+                })
+        
+        return Response("Saved Success")
+        # except:
+        #     return Response({"message":"Bad value for this endpoint"},status=404)
 class CreateListingView(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
@@ -232,11 +251,11 @@ class WonView(APIView):
 class BidView(APIView):
     permission_classes=(IsAuthenticated,)
     def post(self,request,*args,**kwargs):
-        
-        listing_data=active_list.objects.get(pk=kwargs.get('id'))
+        id=kwargs.get('id')
+        listing_data=active_list.objects.get(pk=id)
         
         if listing_data.status==True:
-            bid_data=listing_data.primary_bid
+            bid_data=get_bid_data([listing_data])[0]
             if int(request.data["bid"])>bid_data:
                 prev_bid=get_prev_bid(listing_data,request.user)
                 if request.user.balance-request.user.total_bid+prev_bid>=int(request.data['bid']):
@@ -246,7 +265,16 @@ class BidView(APIView):
                     request.user.total_bid+=int(request.data['bid'])  
                     request.user.save()
                     bid.save()
+                    channel_layer=get_channel_layer()
+                    print(channel_layer)
+                    if channel_layer!=None:
+                        print("sending data")
+                        async_to_sync(channel_layer.group_send)("listing-"+str(id),{
+                            'type':'chat_message',
+                            'bid':bid.bid
+                        })
                     return Response("Successfully placed")
+
                 else:
                     return Response("No Balance to place bid",status=406)
             else:

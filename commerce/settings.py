@@ -14,7 +14,9 @@ import os
 from datetime import timedelta
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+CHANNEL_LAYERS={"default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }}
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -31,6 +33,7 @@ ALLOWED_HOSTS = ['mhodsaifansari.pythonanywhere.com','127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'rest_framework_simplejwt',
     'rest_framework',
     'auctions',
@@ -130,7 +133,7 @@ USE_L10N = True
 
 USE_TZ = True
 
-
+ASGI_APPLICATION='commerce.asgi.application'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
