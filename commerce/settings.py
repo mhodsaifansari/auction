@@ -79,8 +79,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'commerce.wsgi.application'
-
+#WSGI_APPLICATION = 'commerce.wsgi.application'
+ASGI_APPLICATION='commerce.asgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
