@@ -31,7 +31,8 @@ CHANNEL_LAYERS={"default": {
 SECRET_KEY = os.getenv("SECERT_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
+# DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = True
 
 ALLOWED_HOSTS = []
 if DEBUG:
